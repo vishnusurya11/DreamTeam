@@ -109,7 +109,13 @@ class AgentConfig(BaseModel):
     location: AgentLocation = AgentLocation.CAFETERIA
 
 
+class PlanningFailure(BaseModel):
+    fail_count: int = 0
+    last_failure_at: str = Field(default_factory=_now)
+
+
 class PipelineState(BaseModel):
     projects: dict[str, Project] = Field(default_factory=dict)
     tasks: dict[str, Task] = Field(default_factory=dict)
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
+    planning_failures: dict[str, PlanningFailure] = Field(default_factory=dict)

@@ -1,6 +1,5 @@
 import asyncio
 import re
-import time
 import traceback
 from datetime import datetime, timezone
 from models import (
@@ -75,7 +74,6 @@ class PipelineOrchestrator:
     def __init__(self, store: StateStore):
         self.store = store
         self._running_tasks: set[str] = set()
-        self._planning_failures: dict[str, tuple[int, float]] = {}  # task_id -> (fail_count, last_fail_time)
 
     async def run(self):
         """Main pipeline loop."""
@@ -89,7 +87,8 @@ class PipelineOrchestrator:
             await asyncio.sleep(TICK_INTERVAL_SECONDS)
 
     async def _tick(self):
-        """One pipeline cycle: planning + dev stages."""
+        """One pipeline cycle: cleanup + planning + dev stages."""
+        self.store.cleanup_stale_planning_failures()
         await self._tick_planning()
         await self._tick_development()
 
@@ -97,19 +96,23 @@ class PipelineOrchestrator:
 
     async def _tick_planning(self):
         """Pick up INBOX tasks and run planning meetings."""
-        now = time.monotonic()
+        now = datetime.now(timezone.utc)
         inbox_tasks = []
         for t in self.store.get_tasks_by_stage(PipelineStage.INBOX):
             if t.assigned_agent is not None or t.id in self._running_tasks or t.parent_task_id is not None:
                 continue
-            # Check planning failure cooldown
-            fail_info = self._planning_failures.get(t.id)
-            if fail_info:
-                fail_count, last_fail = fail_info
-                if fail_count >= PLANNING_MAX_RETRIES:
+            # Check planning failure cooldown (persisted in StateStore)
+            failure = self.store.get_planning_failure(t.id)
+            if failure:
+                if failure.fail_count >= PLANNING_MAX_RETRIES:
                     continue  # Exhausted retries, skip
-                if now - last_fail < PLANNING_COOLDOWN_SECONDS:
-                    continue  # In cooldown, skip
+                try:
+                    last_fail = datetime.fromisoformat(failure.last_failure_at)
+                    elapsed = (now - last_fail).total_seconds()
+                    if elapsed < PLANNING_COOLDOWN_SECONDS:
+                        continue  # In cooldown, skip
+                except (ValueError, TypeError):
+                    pass  # Bad timestamp, allow retry
             inbox_tasks.append(t)
         if not inbox_tasks:
             return
@@ -200,10 +203,10 @@ class PipelineOrchestrator:
             print(f"[pipeline] Planning complete for '{task.title}' -> BACKLOG")
 
         except Exception as e:
-            # Track failure for cooldown/retry limiting
-            fail_info = self._planning_failures.get(task_id, (0, 0))
-            fail_count = fail_info[0] + 1
-            self._planning_failures[task_id] = (fail_count, time.monotonic())
+            # Track failure for cooldown/retry limiting (persisted via StateStore)
+            self.store.record_planning_failure(task_id)
+            failure = self.store.get_planning_failure(task_id)
+            fail_count = failure.fail_count if failure else 1
             print(f"[pipeline] Planning error for '{task.title}' (attempt {fail_count}/{PLANNING_MAX_RETRIES}): {e}")
             traceback.print_exc()
             # Reset task to INBOX on failure

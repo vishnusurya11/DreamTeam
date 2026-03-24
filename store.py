@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import WebSocket
 from models import (
     AgentConfig, AgentLocation, AgentRole, LogEntry,
-    PipelineStage, PipelineState, Project, Task, TaskPriority,
+    PipelineStage, PipelineState, PlanningFailure, Project, Task, TaskPriority,
 )
 from config import STATE_FILE, AGENTS, WORKSPACES_DIR, DATA_DIR
 
@@ -172,6 +172,44 @@ class StateStore:
                 setattr(task, key, val)
         self.free_agent(agent_name)
         self.save()
+
+    # --- Planning failure tracking ---
+
+    def record_planning_failure(self, task_id: str):
+        """Record a planning failure for a task. Persists to disk."""
+        failure = self.state.planning_failures.get(task_id)
+        if failure:
+            failure.fail_count += 1
+            failure.last_failure_at = _now()
+        else:
+            self.state.planning_failures[task_id] = PlanningFailure(fail_count=1, last_failure_at=_now())
+        self.save()
+
+    def get_planning_failure(self, task_id: str) -> Optional[PlanningFailure]:
+        """Get planning failure record for a task, or None."""
+        return self.state.planning_failures.get(task_id)
+
+    def cleanup_stale_planning_failures(self, max_age_hours: int = 24):
+        """Remove failure records older than max_age_hours or for deleted tasks."""
+        now = datetime.now(timezone.utc)
+        stale = []
+        for task_id, failure in self.state.planning_failures.items():
+            # Remove if task no longer exists
+            if task_id not in self.state.tasks:
+                stale.append(task_id)
+                continue
+            # Remove if older than max_age_hours
+            try:
+                last_fail = datetime.fromisoformat(failure.last_failure_at)
+                age_hours = (now - last_fail).total_seconds() / 3600
+                if age_hours > max_age_hours:
+                    stale.append(task_id)
+            except (ValueError, TypeError):
+                stale.append(task_id)
+        if stale:
+            for task_id in stale:
+                del self.state.planning_failures[task_id]
+            self.save()
 
     # --- State access ---
 
