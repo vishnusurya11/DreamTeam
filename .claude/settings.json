@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync:*)",
+      "Bash(uv run python -c \":*)",
+      "Read(//c/Users/vishn/AppData/Roaming/Claude/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\vishn\\AppData\\Roaming\\Claude"
+    ]
+  }
+}

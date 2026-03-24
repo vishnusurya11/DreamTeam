@@ -1,0 +1,17 @@
+[project]
+name = "dreamteam"
+version = "0.1.0"
+description = "AI-powered virtual software engineering office with autonomous agent teams"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-core>=1.0.3",
+    "langchain-ollama>=1.0.0",
+    "langchain-openai>=1.0.0",
+    "langgraph>=1.0.2",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "websockets>=14.0",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0.0",
+    "ddgs>=7.0.0",
+]

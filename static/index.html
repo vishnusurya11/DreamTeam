@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DreamTeam — Mission Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET ===== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+/* ===== DESIGN TOKENS (Linear/Vercel-grade) ===== */
+:root{
+  --bg-base:#09090B;
+  --bg-surface:#18181B;
+  --bg-elevated:#27272A;
+  --bg-hover:rgba(255,255,255,0.04);
+  --bg-active:rgba(255,255,255,0.06);
+  --text-1:#FAFAFA;
+  --text-2:#A1A1AA;
+  --text-3:#71717A;
+  --text-4:#52525B;
+  --border:#27272A;
+  --border-subtle:rgba(255,255,255,0.06);
+  --border-strong:#3F3F46;
+  --accent:#6366F1;
+  --accent-glow:rgba(99,102,241,0.15);
+  --accent-text:#A5B4FC;
+  --green:#22C55E;
+  --green-bg:rgba(34,197,94,0.12);
+  --yellow:#EAB308;
+  --yellow-bg:rgba(234,179,8,0.12);
+  --red:#EF4444;
+  --red-bg:rgba(239,68,68,0.12);
+  --blue:#3B82F6;
+  --blue-bg:rgba(59,130,246,0.12);
+  --purple:#A855F7;
+  --purple-bg:rgba(168,85,247,0.12);
+  --cyan:#06B6D4;
+  --orange:#F97316;
+  --pink:#EC4899;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:0 0 0 1px var(--border-subtle),0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:0 0 0 1px var(--border-subtle),0 16px 48px rgba(0,0,0,0.5);
+  --shadow-glow:0 0 0 1px var(--border-subtle),inset 0 1px 0 rgba(255,255,255,0.04),0 4px 16px rgba(0,0,0,0.4);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+  --radius:8px;
+  --radius-lg:12px;
+}
+
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:13px;line-height:1.5;color:var(--text-2);
+  background:var(--bg-base);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  height:100vh;overflow:hidden;
+}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text-4);}
+
+/* ===== LAYOUT ===== */
+.app{display:grid;grid-template-columns:240px 1fr;grid-template-rows:56px 1fr;height:100vh;}
+.topbar{grid-column:1/-1;}
+.sidebar{grid-row:2;}
+.main{grid-row:2;overflow-y:auto;overflow-x:hidden;}
+
+/* ===== TOPBAR ===== */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;
+  background:rgba(9,9,11,0.8);
+  backdrop-filter:blur(12px) saturate(150%);
+  -webkit-backdrop-filter:blur(12px) saturate(150%);
+  border-bottom:1px solid var(--border-subtle);
+  z-index:50;position:sticky;top:0;
+}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.logo{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--text-1);letter-spacing:-0.01em;}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--accent),var(--purple));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;font-size:13px;font-weight:500;font-family:inherit;
+  border-radius:6px;border:1px solid var(--border-strong);
+  background:var(--bg-surface);color:var(--text-2);
+  cursor:pointer;transition:all 150ms var(--ease);
+  box-shadow:var(--shadow-sm);
+}
+.btn:hover{background:var(--bg-elevated);color:var(--text-1);border-color:var(--text-4);}
+.btn:active{transform:scale(0.98);transition-duration:75ms;}
+.btn-primary{
+  background:var(--accent);color:#fff;border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent),0 2px 8px rgba(99,102,241,0.25);
+}
+.btn-primary:hover{background:#5558E6;border-color:#5558E6;}
+.live-badge{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3);padding:0 8px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);animation:pulse 3s ease-in-out infinite;}
+.live-dot.off{background:var(--red);box-shadow:0 0 6px var(--red);animation:none;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  background:var(--bg-surface);border-right:1px solid var(--border-subtle);
+  display:flex;flex-direction:column;padding:12px 0;overflow-y:auto;
+}
+.nav-group{padding:0 8px;margin-bottom:4px;}
+.nav-label{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:0.05em;padding:8px 12px 4px;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:7px 12px;
+  border-radius:6px;cursor:pointer;font-size:13px;font-weight:400;
+  color:var(--text-3);transition:all 150ms var(--ease);margin:1px 0;
+}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-2);}
+.nav-item.active{background:var(--bg-active);color:var(--text-1);font-weight:500;}
+.nav-icon{width:18px;text-align:center;font-size:15px;opacity:.65;}
+.nav-item.active .nav-icon{opacity:1;}
+.nav-sep{height:1px;background:var(--border-subtle);margin:8px 16px;}
+.nav-bottom{margin-top:auto;padding:4px 8px;border-top:1px solid var(--border-subtle);}
+.nav-agent{
+  display:flex;align-items:center;gap:8px;padding:5px 12px;
+  font-size:12px;color:var(--text-4);cursor:pointer;border-radius:5px;
+  transition:all 150ms var(--ease);
+}
+.nav-agent:hover{background:var(--bg-hover);color:var(--text-2);}
+.nav-agent-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;transition:box-shadow .3s;}
+.nav-agent-dot.on{box-shadow:0 0 5px currentColor;}
+.nav-agent-name{flex:1;}
+.nav-agent-tag{font-size:10px;color:var(--text-4);font-weight:500;text-transform:uppercase;letter-spacing:.04em;}
+
+/* ===== MAIN CONTENT ===== */
+.main{padding:28px 32px;background:var(--bg-base);}
+.page-label{font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;}
+.page-title{font-size:22px;font-weight:600;color:var(--text-1);letter-spacing:-0.02em;margin-bottom:20px;display:flex;align-items:center;gap:12px;}
+
+/* ===== CARDS ===== */
+.card{
+  background:var(--bg-surface);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-glow);
+  padding:20px;margin-bottom:16px;
+  position:relative;overflow:hidden;
+}
+/* Gradient border glow on hero cards */
+.card-hero{position:relative;}
+.card-hero::before{
+  content:'';position:absolute;inset:0;border-radius:var(--radius-lg);padding:1px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.03) 100%);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  mask-composite:exclude;pointer-events:none;
+}
+.card-title{font-size:12px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.card-count{font-size:11px;color:var(--text-4);background:var(--bg-base);padding:2px 8px;border-radius:99px;font-weight:500;}
+
+/* ===== STATS GRID ===== */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat{
+  background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius);
+  padding:16px 18px;display:flex;align-items:center;gap:14px;
+  box-shadow:var(--shadow-glow);transition:border-color 200ms var(--ease);
+}
+.stat:hover{border-color:var(--border-strong);}
+.stat-icon{width:40px;height:40px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.stat-label{font-size:11px;color:var(--text-3);font-weight:500;text-transform:uppercase;letter-spacing:.04em;}
+.stat-val{font-size:24px;font-weight:600;color:var(--text-1);letter-spacing:-0.02em;margin-top:2px;}
+
+/* ===== FACTORY FLOOR ===== */
+.factory{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:3px;
+  background:var(--bg-surface);border:1px solid var(--border-subtle);
+  border-radius:var(--radius-lg);overflow:hidden;margin-bottom:20px;
+  box-shadow:var(--shadow-glow);
+}
+.station{display:flex;flex-direction:column;min-height:180px;background:var(--bg-base);position:relative;}
+.station-head{
+  padding:10px 12px;text-align:center;font-size:11px;font-weight:600;
+  color:var(--text-3);letter-spacing:.06em;text-transform:uppercase;
+  background:var(--bg-surface);border-bottom:2px solid var(--station-c,var(--border));
+}
+.station[data-room="planning"] {--station-c:var(--purple);}
+.station[data-room="dev"]      {--station-c:var(--blue);}
+.station[data-room="qa"]       {--station-c:var(--yellow);}
+.station[data-room="review"]   {--station-c:var(--orange);}
+.station[data-room="meeting"]  {--station-c:var(--cyan);}
+.station[data-room="cafeteria"]{--station-c:var(--green);}
+.station-body{
+  flex:1;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;
+  gap:6px;padding:12px 6px 14px;
+  background:repeating-linear-gradient(0deg,transparent,transparent 23px,rgba(255,255,255,.015) 23px,rgba(255,255,255,.015) 24px),
+    repeating-linear-gradient(90deg,transparent,transparent 23px,rgba(255,255,255,.015) 23px,rgba(255,255,255,.015) 24px);
+}
+
+/* ===== SPRITES ===== */
+.sprite{display:flex;flex-direction:column;align-items:center;position:relative;}
+.sprite.idle{animation:bob 4s ease-in-out infinite;}
+.sprite.busy{animation:bobfast 2.5s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1px);}}
+@keyframes bobfast{0%,100%{transform:translateY(0);}50%{transform:translateY(-1px);}}
+.sprite-px{width:3px;height:3px;image-rendering:pixelated;margin-bottom:5px;}
+.sprite-name{font-size:10px;font-weight:500;white-space:nowrap;}
+.sprite-badge{position:absolute;top:-12px;font-size:9px;opacity:.7;}
+
+/* ===== CONVEYOR ===== */
+.conveyor{height:16px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:4px;margin-bottom:20px;overflow:hidden;position:relative;}
+.conv-track{display:flex;gap:28px;align-items:center;position:absolute;left:0;top:0;height:100%;width:200%;animation:conv 3.5s linear infinite;}
+.conv-block{width:10px;height:8px;background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:2px;flex-shrink:0;}
+@keyframes conv{0%{transform:translateX(-50%);}100%{transform:translateX(0);}}
+
+/* ===== TASK ITEMS ===== */
+.tsk{
+  background:var(--bg-elevated);border:1px solid var(--border-subtle);
+  border-radius:var(--radius);padding:10px 14px;margin-bottom:6px;
+  cursor:pointer;transition:all 150ms var(--ease);
+}
+.tsk:hover{border-color:var(--border-strong);background:rgba(39,39,42,.8);}
+.tsk.expanded .tsk-detail{display:block;}
+.tsk-top{display:flex;align-items:center;gap:8px;}
+.tsk-prio{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.tsk-prio.critical{background:var(--red);box-shadow:0 0 4px var(--red);}
+.tsk-prio.high{background:var(--yellow);}
+.tsk-prio.medium{background:var(--blue);}
+.tsk-prio.low{background:var(--text-4);}
+.tsk-title{font-size:13px;color:var(--text-1);font-weight:500;flex:1;}
+.tsk-stage{font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:.03em;}
+.tsk-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-4);margin-top:4px;}
+.tsk-agent-dot{width:5px;height:5px;border-radius:50%;display:inline-block;margin-right:3px;}
+.tsk-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle);font-size:12px;color:var(--text-3);max-height:180px;overflow-y:auto;line-height:1.6;}
+.tsk-actions{display:flex;gap:6px;margin-top:8px;}
+.tsk-actions button{font-family:inherit;font-size:11px;padding:4px 10px;border-radius:5px;border:1px solid var(--border-strong);background:var(--bg-surface);color:var(--text-3);cursor:pointer;transition:all 150ms var(--ease);}
+.tsk-actions button:hover{color:var(--text-1);border-color:var(--text-4);}
+.tsk-actions .del:hover{color:var(--red);border-color:var(--red);}
+
+/* ===== PIPELINE BARS ===== */
+.pipe{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.pipe-lbl{width:70px;font-size:11px;font-weight:500;color:var(--text-4);text-align:right;text-transform:uppercase;letter-spacing:.03em;}
+.pipe-bar{flex:1;height:8px;background:var(--bg-base);border-radius:4px;overflow:hidden;}
+.pipe-fill{height:100%;border-radius:4px;transition:width .5s var(--ease);}
+.pipe-n{width:20px;font-size:11px;color:var(--text-4);font-weight:600;}
+
+/* Sprint progress */
+.sprint-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--bg-base);margin:10px 0;}
+.sprint-seg{transition:width .5s var(--ease);}
+.sprint-legend{display:flex;gap:16px;margin:8px 0;}
+.sprint-leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3);}
+.sprint-dot{width:8px;height:8px;border-radius:3px;}
+
+/* Agent cards */
+.agt-card{
+  display:flex;gap:16px;padding:14px;
+  background:var(--bg-elevated);border:1px solid var(--border-subtle);
+  border-radius:var(--radius);margin-bottom:8px;cursor:pointer;
+  transition:all 150ms var(--ease);
+}
+.agt-card:hover{border-color:var(--border-strong);background:rgba(39,39,42,.8);}
+.agt-sprite{width:48px;height:48px;background:var(--bg-base);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.agt-info{flex:1;min-width:0;}
+.agt-name{font-size:14px;font-weight:600;color:var(--text-1);margin-bottom:2px;}
+.agt-role{font-size:11px;color:var(--text-3);text-transform:uppercase;font-weight:500;letter-spacing:.03em;}
+.agt-stat-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-subtle);font-size:13px;}
+.agt-stat-row:last-child{border-bottom:none;}
+.agt-sl{color:var(--text-3);}
+.agt-sv{color:var(--text-1);font-weight:500;}
+
+/* ===== MODALS ===== */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);z-index:100;align-items:center;justify-content:center;}
+.modal-bg.active{display:flex;}
+.modal{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:24px;width:460px;max-width:92vw;box-shadow:var(--shadow-lg);animation:modalIn .2s var(--ease);}
+@keyframes modalIn{from{opacity:0;transform:scale(.98) translateY(4px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal h2{font-size:16px;font-weight:600;color:var(--text-1);margin-bottom:18px;letter-spacing:-0.01em;}
+.modal label{display:block;font-size:12px;color:var(--text-3);font-weight:500;margin-bottom:4px;}
+.modal input,.modal textarea,.modal select{
+  width:100%;font-family:inherit;font-size:13px;padding:9px 12px;
+  border-radius:6px;border:1px solid var(--border-strong);
+  background:var(--bg-base);color:var(--text-1);margin-bottom:14px;
+  outline:none;transition:border-color 150ms var(--ease);
+}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+.modal textarea{min-height:80px;resize:vertical;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:1000px){.app{grid-template-columns:1fr;}.sidebar{display:none;}.stats{grid-template-columns:repeat(2,1fr);}.factory{grid-template-columns:repeat(3,1fr);}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo"><div class="logo-icon">D</div>Mission Control</div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn" onclick="openProjectModal()">+ Project</button>
+      <button class="btn btn-primary" onclick="openTaskModal()">+ New Task</button>
+      <div class="live-badge"><span class="live-dot" id="syncDot"></span>Live sync</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="nav-group" id="navItems">
+      <div class="nav-item active" data-tab="factory" onclick="setTab('factory')"><span class="nav-icon">🏭</span>Factory</div>
+      <div class="nav-item" data-tab="tasks" onclick="setTab('tasks')"><span class="nav-icon">📋</span>Tasks</div>
+      <div class="nav-item" data-tab="pipeline" onclick="setTab('pipeline')"><span class="nav-icon">⚙️</span>Pipeline</div>
+      <div class="nav-item" data-tab="agents" onclick="setTab('agents')"><span class="nav-icon">👥</span>Agents</div>
+      <div class="nav-item" data-tab="projects" onclick="setTab('projects')"><span class="nav-icon">📁</span>Projects</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-tab="activity" onclick="setTab('activity')"><span class="nav-icon">📡</span>Activity</div>
+      <div class="nav-item" data-tab="stats" onclick="setTab('stats')"><span class="nav-icon">📊</span>Stats</div>
+    </div>
+    <div class="nav-bottom" id="navAgents"></div>
+  </div>
+
+  <div class="main" id="mainContent"></div>
+</div>
+
+<div class="modal-bg" id="projectModal">
+  <div class="modal"><h2>New Project</h2>
+    <label>Name</label><input type="text" id="projectName" placeholder="Project name..."/>
+    <label>Description</label><textarea id="projectDesc" placeholder="Description..."></textarea>
+    <div class="modal-actions"><button class="btn" onclick="closeProjectModal()">Cancel</button><button class="btn btn-primary" onclick="submitProject()">Create</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="taskModal">
+  <div class="modal"><h2>New Task</h2>
+    <label>Project</label><select id="taskProject"></select>
+    <label>Title</label><input type="text" id="taskTitle" placeholder="Task title..."/>
+    <label>Description</label><textarea id="taskDesc" placeholder="What needs to be done..."></textarea>
+    <label>Priority</label>
+    <select id="taskPriority"><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option><option value="low">Low</option></select>
+    <div class="modal-actions"><button class="btn" onclick="closeTaskModal()">Cancel</button><button class="btn btn-primary" onclick="submitTask()">Create</button></div>
+  </div>
+</div>
+
+<script>
+const AGENT_COLORS={Paula:'#A855F7',Alex:'#8B5CF6',Sam:'#EC4899',Charlie:'#3B82F6',Codex:'#06B6D4',Henry:'#EAB308',Ralph:'#F97316'};
+const AGENT_HAIR={Paula:'#2d1b69',Alex:'#1a1a2e',Sam:'#b33939',Charlie:'#3a2820',Codex:'#1a1a2e',Henry:'#8b6914',Ralph:'#5a1a1a'};
+const SKIN='#f0c090';
+const ROLE_LABELS={planner:'PLN',builder:'DEV',qa:'QA',reviewer:'REV'};
+const STAGES=['INBOX','PLANNING','BACKLOG','BUILDING','QA','REVIEW','SHIP'];
+const STAGE_COLORS={INBOX:'var(--text-4)',PLANNING:'var(--purple)',BACKLOG:'var(--text-3)',BUILDING:'var(--blue)',QA:'var(--yellow)',REVIEW:'var(--orange)',SHIP:'var(--green)'};
+const STAGE_BG={INBOX:'var(--bg-base)',PLANNING:'var(--purple-bg)',BACKLOG:'var(--bg-base)',BUILDING:'var(--blue-bg)',QA:'var(--yellow-bg)',REVIEW:'rgba(249,115,22,.12)',SHIP:'var(--green-bg)'};
+const ROOMS=['planning','dev','qa','review','meeting','cafeteria'];
+const ROOM_NAMES={planning:'Planning',dev:'Dev Area',qa:'QA Lab',review:'Review',meeting:'Meeting',cafeteria:'Cafe'};
+const LOC_ROOM={planning_room:'planning',dev_area:'dev',qa_lab:'qa',review_room:'review',meeting_room:'meeting',cafeteria:'cafeteria'};
+
+let state={projects:{},tasks:{},agents:{}};
+let selectedProjectId=null,selectedAgent=null,activeTab='factory';
+let expandedCards=new Set(),activityLog=[],ws;
+
+function spriteCSS(n,busy){
+  const c=AGENT_COLORS[n]||'#888',h=AGENT_HAIR[n]||'#333',sk=SKIN,pa='#27272A',sh='#18181B';
+  const s=3,px=[];const p=(x,y,cl)=>px.push(`${x*s}px ${y*s}px 0 ${cl}`);
+  for(let x=2;x<=5;x++)p(x,0,h);for(let x=1;x<=6;x++)p(x,1,h);
+  for(let x=1;x<=6;x++)p(x,2,sk);p(2,2,'#222');p(5,2,'#222');
+  for(let x=1;x<=6;x++)p(x,3,sk);p(3,3,'#c08060');p(4,3,'#c08060');
+  for(let x=1;x<=6;x++)p(x,4,c);for(let x=1;x<=6;x++)p(x,5,c);for(let x=2;x<=5;x++)p(x,6,c);
+  if(busy){p(0,4,c);p(7,4,c);p(0,3,sk);p(7,3,sk);}else{p(0,5,c);p(7,5,c);p(0,6,sk);p(7,6,sk);}
+  for(let x=2;x<=5;x++)p(x,7,pa);p(2,8,pa);p(3,8,pa);p(4,8,pa);p(5,8,pa);
+  p(2,9,sh);p(3,9,sh);p(4,9,sh);p(5,9,sh);
+  return `box-shadow:${px.join(',')};`;
+}
+function renderSprite(n,busy){
+  const c=AGENT_COLORS[n]||'#888',a=busy?'busy':'idle';
+  const badge=busy?'<div class="sprite-badge">⚡</div>':'';
+  return `<div class="sprite ${a}">${badge}<div class="sprite-px" style="${spriteCSS(n,busy)}"></div><div class="sprite-name" style="color:${c}">${n}</div></div>`;
+}
+
+function setTab(t){activeTab=t;document.querySelectorAll('.nav-item').forEach(e=>e.classList.toggle('active',e.dataset.tab===t));renderMain();}
+function renderAll(){renderNavAgents();renderMain();}
+
+function renderNavAgents(){
+  const el=document.getElementById('navAgents');
+  if(!state.agents||!Object.keys(state.agents).length){el.innerHTML='';return;}
+  el.innerHTML='<div class="nav-label">Team</div>'+Object.entries(state.agents).map(([n,a])=>{
+    const c=AGENT_COLORS[n]||'#888';
+    return `<div class="nav-agent" onclick="selectedAgent='${n}';setTab('agents')">
+      <span class="nav-agent-dot ${a.is_busy?'on':''}" style="color:${c};background:${c}"></span>
+      <span class="nav-agent-name">${n}</span>
+      <span class="nav-agent-tag">${ROLE_LABELS[a.role]||''}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderMain(){
+  const el=document.getElementById('mainContent');
+  const fn={factory:renderFactory,tasks:renderTasks,pipeline:renderPipeline,agents:renderAgents,projects:renderProjects,activity:renderActivity,stats:renderStats};
+  (fn[activeTab]||renderFactory)(el);
+}
+
+function getStats(){
+  const tasks=Object.values(state.tasks);
+  const pt=selectedProjectId?tasks.filter(t=>t.project_id===selectedProjectId):tasks;
+  const sc={};STAGES.forEach(s=>sc[s]=0);pt.forEach(t=>{if(sc[t.stage]!==undefined)sc[t.stage]++;});
+  const shipped=sc.SHIP||0,active=(sc.BUILDING||0)+(sc.QA||0)+(sc.REVIEW||0)+(sc.PLANNING||0),backlog=(sc.INBOX||0)+(sc.BACKLOG||0);
+  const agents=Object.values(state.agents),busy=agents.filter(a=>a.is_busy).length;
+  return {sc,shipped,active,backlog,total:pt.length||1,tasks:pt,agents,busy};
+}
+
+function renderFactory(el){
+  const s=getStats();
+  const roomAgents={};ROOMS.forEach(r=>roomAgents[r]=[]);
+  if(state.agents)for(const[n,a]of Object.entries(state.agents)){const r=LOC_ROOM[a.location]||'cafeteria';roomAgents[r].push({n,a});}
+
+  el.innerHTML=`
+    <div class="page-label">Factory Floor</div>
+    <div class="page-title">Software Factory Pipeline <span class="live-badge" style="font-size:12px;font-weight:400;"><span class="live-dot"></span>Live sync enabled</span></div>
+    <div class="factory">${ROOMS.map(r=>`<div class="station" data-room="${r}">
+      <div class="station-head">${ROOM_NAMES[r]}</div>
+      <div class="station-body">${(roomAgents[r]||[]).map(({n,a})=>renderSprite(n,a.is_busy)).join('')}</div>
+    </div>`).join('')}</div>
+    <div class="conveyor"><div class="conv-track">${Array(30).fill('<div class="conv-block"></div>').join('')}</div></div>
+    <div class="stats">
+      <div class="stat"><div class="stat-icon" style="background:var(--green-bg);color:var(--green)">✓</div><div><div class="stat-label">Shipped</div><div class="stat-val">${s.shipped}</div></div></div>
+      <div class="stat"><div class="stat-icon" style="background:var(--blue-bg);color:var(--blue)">⚡</div><div><div class="stat-label">In Progress</div><div class="stat-val">${s.active}</div></div></div>
+      <div class="stat"><div class="stat-icon" style="background:var(--yellow-bg);color:var(--yellow)">◻</div><div><div class="stat-label">Backlog</div><div class="stat-val">${s.backlog}</div></div></div>
+      <div class="stat"><div class="stat-icon" style="background:var(--purple-bg);color:var(--purple)">👥</div><div><div class="stat-label">Team Active</div><div class="stat-val">${s.busy}/${s.agents.length}</div></div></div>
+    </div>
+    ${s.tasks.length?`<div class="card card-hero"><div class="card-title">Recent Tasks <span class="card-count">${s.tasks.length}</span></div>${s.tasks.slice(0,6).map(renderTsk).join('')}</div>`:''}`;
+}
+
+function renderTasks(el){
+  const s=getStats();
+  const grouped={};STAGES.forEach(st=>grouped[st]=[]);s.tasks.forEach(t=>{if(grouped[t.stage])grouped[t.stage].push(t);});
+  el.innerHTML=`<div class="page-label">Task Board</div><div class="page-title">All Tasks (${s.tasks.length})</div>
+    ${STAGES.map(st=>grouped[st].length?`<div class="card"><div class="card-title"><span style="color:${STAGE_COLORS[st]}">${st}</span><span class="card-count">${grouped[st].length}</span></div>${grouped[st].map(renderTsk).join('')}</div>`:'').join('')}`;
+}
+
+function renderTsk(t){
+  const sc=STAGE_COLORS[t.stage]||'var(--text-4)',sb=STAGE_BG[t.stage]||'var(--bg-base)';
+  const ac=AGENT_COLORS[t.assigned_agent]||'var(--text-4)';
+  const exp=expandedCards.has(t.id)?'expanded':'';
+  let det='';
+  if(t.description)det+=`<div>${esc(t.description).substring(0,300)}</div>`;
+  if(t.planning_notes)det+=`<div style="margin-top:6px;color:var(--purple)">Planning: ${esc(t.planning_notes).substring(0,200)}</div>`;
+  if(t.code_output)det+=`<div style="margin-top:6px">Build: ${esc(t.code_output).substring(0,200)}</div>`;
+  return `<div class="tsk ${exp}" onclick="toggleCard('${t.id}')">
+    <div class="tsk-top"><span class="tsk-prio ${t.priority}"></span><span class="tsk-title">${esc(t.title)}</span><span class="tsk-stage" style="color:${sc};background:${sb}">${t.stage}</span></div>
+    <div class="tsk-meta">${t.assigned_agent?`<span><span class="tsk-agent-dot" style="background:${ac}"></span>${t.assigned_agent}</span>`:'<span></span>'}<span>${t.retries>0?'retry '+t.retries+'/3':''}</span></div>
+    <div class="tsk-detail">${det}<div class="tsk-actions"><button onclick="event.stopPropagation();resetTask('${t.id}')">Reset</button><button class="del" onclick="event.stopPropagation();deleteTask('${t.id}')">Delete</button></div></div>
+  </div>`;
+}
+
+function renderPipeline(el){
+  const s=getStats();
+  el.innerHTML=`<div class="page-label">Pipeline</div><div class="page-title">Pipeline Flow</div>
+    <div class="card card-hero"><div class="card-title">Sprint Progress</div>
+      <div class="sprint-bar"><div class="sprint-seg" style="width:${s.shipped/s.total*100}%;background:var(--green)"></div><div class="sprint-seg" style="width:${s.active/s.total*100}%;background:var(--blue)"></div><div class="sprint-seg" style="width:${s.backlog/s.total*100}%;background:var(--bg-elevated)"></div></div>
+      <div class="sprint-legend"><div class="sprint-leg"><div class="sprint-dot" style="background:var(--green)"></div>Done ${s.shipped}</div><div class="sprint-leg"><div class="sprint-dot" style="background:var(--blue)"></div>Active ${s.active}</div><div class="sprint-leg"><div class="sprint-dot" style="background:var(--bg-elevated)"></div>Todo ${s.backlog}</div></div>
+    </div>
+    <div class="card"><div class="card-title">Stages</div>${STAGES.map(st=>`<div class="pipe"><span class="pipe-lbl">${st}</span><div class="pipe-bar"><div class="pipe-fill" style="width:${(s.sc[st]||0)/s.total*100}%;background:${STAGE_COLORS[st]}"></div></div><span class="pipe-n">${s.sc[st]||0}</span></div>`).join('')}</div>`;
+}
+
+function renderAgents(el){
+  if(selectedAgent&&state.agents[selectedAgent]){
+    const a=state.agents[selectedAgent],c=AGENT_COLORS[a.name]||'#888';
+    const task=a.current_task_id?state.tasks[a.current_task_id]:null;
+    const loc=(a.location||'cafeteria').replace(/_/g,' ');
+    el.innerHTML=`<div class="page-label">Agent</div><div class="page-title">${a.name} <button class="btn" onclick="selectedAgent=null;renderMain()" style="font-size:11px;padding:4px 10px;">← Back</button></div>
+      <div class="agt-card"><div class="agt-sprite"><div style="width:3px;height:3px;${spriteCSS(a.name,a.is_busy)}transform:scale(3);transform-origin:center;"></div></div><div class="agt-info"><div class="agt-name" style="color:${c}">${a.name}</div><div class="agt-role">${a.role}</div></div></div>
+      <div class="card"><div class="agt-stat-row"><span class="agt-sl">Status</span><span class="agt-sv" style="color:${a.is_busy?'var(--green)':'var(--text-4)'}">${a.is_busy?'⚡ Working':'Idle'}</span></div>
+        <div class="agt-stat-row"><span class="agt-sl">Location</span><span class="agt-sv">${loc}</span></div>
+        ${task?`<div class="agt-stat-row"><span class="agt-sl">Task</span><span class="agt-sv">${esc(task.title)}</span></div><div class="agt-stat-row"><span class="agt-sl">Stage</span><span class="agt-sv" style="color:${STAGE_COLORS[task.stage]}">${task.stage}</span></div>`:''}
+      </div>
+      <div class="card"><div class="card-title">Personality</div><div style="font-size:13px;color:var(--text-2);line-height:1.6;">${esc(a.personality||'')}</div></div>`;
+    return;
+  }
+  el.innerHTML=`<div class="page-label">Team</div><div class="page-title">Agents (${Object.keys(state.agents).length})</div>
+    ${Object.entries(state.agents).map(([n,a])=>{const c=AGENT_COLORS[n]||'#888';const task=a.current_task_id?state.tasks[a.current_task_id]:null;
+      return `<div class="agt-card" onclick="selectedAgent='${n}';renderMain()"><div class="agt-sprite"><div style="width:3px;height:3px;${spriteCSS(n,a.is_busy)}transform:scale(2);transform-origin:center;"></div></div><div class="agt-info"><div class="agt-name" style="color:${c};font-size:14px;">${n}</div><div class="agt-role">${a.role} · ${a.is_busy?'<span style="color:var(--green)">⚡ Working</span>':'<span style="color:var(--text-4)">Idle</span>'}</div>${task?`<div style="font-size:12px;color:var(--text-3);margin-top:2px;">${esc(task.title)}</div>`:''}</div></div>`;}).join('')}`;
+}
+
+function renderProjects(el){
+  const projects=Object.values(state.projects);
+  if(!selectedProjectId&&projects.length)selectedProjectId=projects[0].id;
+  el.innerHTML=`<div class="page-label">Projects</div><div class="page-title">Projects (${projects.length})</div>
+    ${!projects.length?'<div class="card" style="text-align:center;color:var(--text-4);padding:32px;">No projects yet. Click "+ Project" to create one.</div>':''}
+    ${projects.map(p=>{const tasks=Object.values(state.tasks).filter(t=>t.project_id===p.id);const shipped=tasks.filter(t=>t.stage==='SHIP').length;const active=p.id===selectedProjectId;
+      return `<div class="card ${active?'card-hero':''}" style="cursor:pointer;${active?'border-color:var(--accent);':''}" onclick="selectedProjectId='${p.id}';renderAll()">
+        <div class="card-title"><span style="color:${active?'var(--accent-text)':'var(--text-1)'}">${esc(p.name)}</span><span class="card-count">${tasks.length} tasks</span></div>
+        ${p.description?`<div style="font-size:13px;color:var(--text-3);margin-bottom:8px;">${esc(p.description)}</div>`:''}
+        <div style="font-size:12px;color:var(--text-4);">${shipped} shipped · ${tasks.length-shipped} remaining</div></div>`;}).join('')}`;
+}
+
+function renderActivity(el){
+  el.innerHTML=`<div class="page-label">Activity</div><div class="page-title">Activity Log</div>
+    <div class="card">${activityLog.slice(-30).reverse().map(e=>`<div style="padding:7px 0;border-bottom:1px solid var(--border-subtle);font-size:12px;color:var(--text-2);line-height:1.5;"><span style="font-weight:600;color:${AGENT_COLORS[e.agent]||'var(--text-2)'}">${e.agent}</span> ${esc(e.message)} <span style="color:var(--text-4);font-size:10px;margin-left:4px;">${e.time||''}</span></div>`).join('')||'<div style="color:var(--text-4);text-align:center;padding:24px;">No activity yet.</div>'}</div>`;
+}
+
+function renderStats(el){
+  const s=getStats();
+  const prioCounts={critical:0,high:0,medium:0,low:0};s.tasks.forEach(t=>{if(prioCounts[t.priority]!==undefined)prioCounts[t.priority]++;});
+  const prioColors={critical:'var(--red)',high:'var(--yellow)',medium:'var(--blue)',low:'var(--text-4)'};
+  el.innerHTML=`<div class="page-label">Dashboard</div><div class="page-title">Sprint Stats</div>
+    <div class="stats">
+      <div class="stat"><div class="stat-icon" style="background:var(--green-bg);color:var(--green)">✓</div><div><div class="stat-label">Shipped</div><div class="stat-val">${s.shipped}</div></div></div>
+      <div class="stat"><div class="stat-icon" style="background:var(--blue-bg);color:var(--blue)">⚡</div><div><div class="stat-label">Active</div><div class="stat-val">${s.active}</div></div></div>
+      <div class="stat"><div class="stat-icon" style="background:var(--yellow-bg);color:var(--yellow)">📋</div><div><div class="stat-label">Total</div><div class="stat-val">${s.tasks.length}</div></div></div>
+      <div class="stat"><div class="stat-icon" style="background:var(--purple-bg);color:var(--purple)">👥</div><div><div class="stat-label">Active</div><div class="stat-val">${s.busy}/${s.agents.length}</div></div></div>
+    </div>
+    <div class="card card-hero"><div class="card-title">Priority Breakdown</div>${['critical','high','medium','low'].map(p=>`<div class="pipe"><span class="pipe-lbl" style="text-transform:capitalize">${p}</span><div class="pipe-bar"><div class="pipe-fill" style="width:${(prioCounts[p]||0)/s.total*100}%;background:${prioColors[p]}"></div></div><span class="pipe-n">${prioCounts[p]||0}</span></div>`).join('')}</div>
+    <div class="card"><div class="card-title">Team Utilization</div>${s.agents.map(a=>{const c=AGENT_COLORS[a.name]||'#888';return `<div class="pipe"><span class="pipe-lbl" style="color:${c}">${a.name}</span><div class="pipe-bar"><div class="pipe-fill" style="width:${a.is_busy?100:0}%;background:${c}"></div></div><span class="pipe-n">${a.is_busy?'⚡':'—'}</span></div>`;}).join('')}</div>`;
+}
+
+function toggleCard(id){expandedCards.has(id)?expandedCards.delete(id):expandedCards.add(id);renderMain();}
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function trackActivity(old,ns){
+  if(!old.agents)return;
+  for(const[n,a]of Object.entries(ns.agents)){const o=old.agents[n];if(!o)continue;
+    if(o.location!==a.location)activityLog.push({agent:n,message:`moved to ${(a.location||'').replace(/_/g,' ')}`,time:new Date().toLocaleTimeString()});
+    if(!o.is_busy&&a.is_busy&&a.current_task_id){const t=ns.tasks[a.current_task_id];if(t)activityLog.push({agent:n,message:`started "${t.title}"`,time:new Date().toLocaleTimeString()});}
+    if(o.is_busy&&!a.is_busy)activityLog.push({agent:n,message:'finished work',time:new Date().toLocaleTimeString()});
+  }
+  if(activityLog.length>50)activityLog=activityLog.slice(-50);
+}
+
+function openProjectModal(){document.getElementById('projectModal').classList.add('active');document.getElementById('projectName').focus();}
+function closeProjectModal(){document.getElementById('projectModal').classList.remove('active');document.getElementById('projectName').value='';document.getElementById('projectDesc').value='';}
+async function submitProject(){const n=document.getElementById('projectName').value.trim();if(!n)return;await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,description:document.getElementById('projectDesc').value.trim()})});closeProjectModal();}
+function openTaskModal(){const s=document.getElementById('taskProject');const p=Object.values(state.projects);s.innerHTML=p.map(x=>`<option value="${x.id}" ${x.id===selectedProjectId?'selected':''}>${esc(x.name)}</option>`).join('');if(!p.length)s.innerHTML='<option value="">Create a project first</option>';document.getElementById('taskModal').classList.add('active');document.getElementById('taskTitle').focus();}
+function closeTaskModal(){document.getElementById('taskModal').classList.remove('active');document.getElementById('taskTitle').value='';document.getElementById('taskDesc').value='';document.getElementById('taskPriority').value='medium';}
+async function submitTask(){const pid=document.getElementById('taskProject').value;if(!pid)return alert('Create a project first');const title=document.getElementById('taskTitle').value.trim();if(!title)return;await fetch(`/api/projects/${pid}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,description:document.getElementById('taskDesc').value.trim()||title,priority:document.getElementById('taskPriority').value})});closeTaskModal();}
+async function deleteTask(id){await fetch(`/api/tasks/${id}`,{method:'DELETE'});}
+async function resetTask(id){await fetch(`/api/tasks/${id}/reset`,{method:'POST'});}
+
+function connectWS(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen=()=>document.getElementById('syncDot').classList.remove('off');
+  ws.onclose=()=>{document.getElementById('syncDot').classList.add('off');setTimeout(connectWS,2000);};
+  ws.onmessage=e=>{const ns=JSON.parse(e.data);trackActivity(state,ns);state=ns;if(!selectedProjectId){const p=Object.values(state.projects);if(p.length)selectedProjectId=p[0].id;}renderAll();};
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeProjectModal();closeTaskModal();}if(e.key==='n'&&!e.ctrlKey&&!e.metaKey&&document.activeElement===document.body)openTaskModal();});
+connectWS();renderMain();
+</script>
+</body>
+</html>
