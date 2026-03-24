@@ -1,14 +1,53 @@
 import asyncio
+import re
 import time
 import traceback
 from datetime import datetime, timezone
-from models import AgentLocation, AgentRole, LogEntry, PipelineStage
+from models import (
+    AgentLocation, AgentRole, LogEntry, PipelineStage,
+    QAVerdict, QAVerdictType, ReviewVerdict, ReviewVerdictType,
+)
 from store import StateStore
 from agents import run_agent_on_task
 from config import TICK_INTERVAL_SECONDS, MAX_RETRIES
 
 PLANNING_MAX_RETRIES = 3
 PLANNING_COOLDOWN_SECONDS = 30
+
+# Regex to find JSON objects containing a "verdict" key in agent output
+_VERDICT_JSON_RE = re.compile(r'\{[^{}]*"verdict"\s*:\s*"[^"]*"[^{}]*\}')
+
+
+def parse_qa_verdict(result: str) -> QAVerdict:
+    """Parse QA verdict from agent output. Tries JSON first, falls back to regex."""
+    # Try to find JSON verdict block
+    for match in reversed(_VERDICT_JSON_RE.findall(result)):
+        try:
+            return QAVerdict.model_validate_json(match)
+        except Exception:
+            continue
+
+    # Fallback: search for verdict keywords with word boundaries
+    upper = result.upper()
+    if re.search(r'\bPASS\b', upper) and not re.search(r'\bFAIL\b', upper):
+        return QAVerdict(verdict=QAVerdictType.PASS, reason="Detected via fallback parsing")
+    return QAVerdict(verdict=QAVerdictType.FAIL, reason="Detected via fallback parsing (no clear PASS found)")
+
+
+def parse_review_verdict(result: str) -> ReviewVerdict:
+    """Parse Review verdict from agent output. Tries JSON first, falls back to regex."""
+    # Try to find JSON verdict block
+    for match in reversed(_VERDICT_JSON_RE.findall(result)):
+        try:
+            return ReviewVerdict.model_validate_json(match)
+        except Exception:
+            continue
+
+    # Fallback: search for verdict keywords with word boundaries
+    upper = result.upper()
+    if re.search(r'\bAPPROVE\b', upper) and not re.search(r'\bREQUEST_CHANGES\b', upper):
+        return ReviewVerdict(verdict=ReviewVerdictType.APPROVE, reason="Detected via fallback parsing")
+    return ReviewVerdict(verdict=ReviewVerdictType.REQUEST_CHANGES, reason="Detected via fallback parsing (no clear APPROVE found)")
 
 
 # Stages where dev tasks are waiting to be picked up
@@ -254,11 +293,12 @@ class PipelineOrchestrator:
             print(f"[pipeline] '{task.title}' -> QA")
 
         elif stage == PipelineStage.QA:
-            verdict = result[-200:].upper()
-            if "PASS" in verdict and "FAIL" not in verdict:
+            qa_verdict = parse_qa_verdict(result)
+            print(f"[pipeline] QA verdict for '{task.title}': {qa_verdict.verdict} — {qa_verdict.reason}")
+            if qa_verdict.verdict == QAVerdictType.PASS:
                 self.store.advance_task(
                     task_id, PipelineStage.REVIEW, agent_name,
-                    f"QA passed: {result[:500]}",
+                    f"QA passed ({qa_verdict.reason}): {result[:500]}",
                     qa_report=result,
                 )
                 print(f"[pipeline] '{task.title}' -> REVIEW")
@@ -267,24 +307,25 @@ class PipelineOrchestrator:
                 if task.retries >= MAX_RETRIES:
                     self.store.advance_task(
                         task_id, PipelineStage.SHIP, agent_name,
-                        f"Max retries reached. Last QA: {result[:500]}",
+                        f"Max retries reached. Last QA ({qa_verdict.reason}): {result[:500]}",
                         qa_report=result,
                     )
                     print(f"[pipeline] '{task.title}' -> SHIP (max retries)")
                 else:
                     self.store.advance_task(
                         task_id, PipelineStage.BACKLOG, agent_name,
-                        f"QA failed (retry {task.retries}/{MAX_RETRIES}): {result[:500]}",
+                        f"QA failed ({qa_verdict.reason}, retry {task.retries}/{MAX_RETRIES}): {result[:500]}",
                         qa_report=result,
                     )
                     print(f"[pipeline] '{task.title}' -> BACKLOG (QA failed)")
 
         elif stage == PipelineStage.REVIEW:
-            verdict = result[-200:].upper()
-            if "APPROVE" in verdict and "REQUEST_CHANGES" not in verdict:
+            review_verdict = parse_review_verdict(result)
+            print(f"[pipeline] Review verdict for '{task.title}': {review_verdict.verdict} — {review_verdict.reason}")
+            if review_verdict.verdict == ReviewVerdictType.APPROVE:
                 self.store.advance_task(
                     task_id, PipelineStage.SHIP, agent_name,
-                    f"Approved: {result[:500]}",
+                    f"Approved ({review_verdict.reason}): {result[:500]}",
                     review_notes=result,
                 )
                 print(f"[pipeline] '{task.title}' -> SHIP (approved!)")
@@ -293,14 +334,14 @@ class PipelineOrchestrator:
                 if task.retries >= MAX_RETRIES:
                     self.store.advance_task(
                         task_id, PipelineStage.SHIP, agent_name,
-                        f"Max retries reached. Last review: {result[:500]}",
+                        f"Max retries reached. Last review ({review_verdict.reason}): {result[:500]}",
                         review_notes=result,
                     )
                     print(f"[pipeline] '{task.title}' -> SHIP (max retries)")
                 else:
                     self.store.advance_task(
                         task_id, PipelineStage.BACKLOG, agent_name,
-                        f"Changes requested (retry {task.retries}/{MAX_RETRIES}): {result[:500]}",
+                        f"Changes requested ({review_verdict.reason}, retry {task.retries}/{MAX_RETRIES}): {result[:500]}",
                         review_notes=result,
                     )
                     print(f"[pipeline] '{task.title}' -> BACKLOG (changes requested)")

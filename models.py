@@ -43,6 +43,26 @@ class TaskPriority(StrEnum):
     LOW = "low"
 
 
+class QAVerdictType(StrEnum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+
+
+class ReviewVerdictType(StrEnum):
+    APPROVE = "APPROVE"
+    REQUEST_CHANGES = "REQUEST_CHANGES"
+
+
+class QAVerdict(BaseModel):
+    verdict: QAVerdictType
+    reason: str = ""
+
+
+class ReviewVerdict(BaseModel):
+    verdict: ReviewVerdictType
+    reason: str = ""
+
+
 class LogEntry(BaseModel):
     timestamp: str = Field(default_factory=_now)
     agent_name: str

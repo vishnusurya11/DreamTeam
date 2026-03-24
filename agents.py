@@ -30,19 +30,19 @@ STAGE_INSTRUCTIONS = {
         "- Use list_files and read_file to review all code in the workspace\n"
         "- Write test cases using execute_python\n"
         "- Run the tests and report findings\n"
-        "- IMPORTANT: Your very last line MUST be exactly one of:\n"
-        "  PASS\n"
-        "  FAIL\n"
-        "  Do not add anything after the verdict word."
+        "- IMPORTANT: At the very end of your response, output your verdict as a JSON block:\n"
+        '  {"verdict": "PASS", "reason": "All tests passed and code works correctly"}\n'
+        '  {"verdict": "FAIL", "reason": "Describe what failed and why"}\n'
+        "  The JSON block MUST be the last thing in your response. Do not add text after it."
     ),
     PipelineStage.REVIEW: (
         "You are in the REVIEW stage. Your job is to review the code quality.\n"
         "- Use list_files and read_file to examine all code and tests\n"
         "- Check for: bugs, security issues, code style, best practices, edge cases\n"
-        "- IMPORTANT: Your very last line MUST be exactly one of:\n"
-        "  APPROVE\n"
-        "  REQUEST_CHANGES\n"
-        "  Do not add anything after the verdict word."
+        "- IMPORTANT: At the very end of your response, output your verdict as a JSON block:\n"
+        '  {"verdict": "APPROVE", "reason": "Code is clean and follows best practices"}\n'
+        '  {"verdict": "REQUEST_CHANGES", "reason": "Describe what needs to change"}\n'
+        "  The JSON block MUST be the last thing in your response. Do not add text after it."
     ),
 }
 
